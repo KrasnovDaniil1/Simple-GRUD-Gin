@@ -1,22 +1,39 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/lib/pq"
 )
-
-type Storage interface {
-	Create() album
-	Read() album
-	ReadOne() (album, error)
-	Update() album
-	Delete() album
-}
 
 type HttpError struct {
 	Error string `json:"error"`
+}
+type Storage interface {
+	Create(album) album
+	Read() []album
+	ReadOne(string) (album, error)
+	Update(string, album) (album, error)
+	Delete(string) error
+}
+
+type album struct {
+	ID     string  `json:"id"`
+	Title  string  `json:"title"`
+	Artist string  `json:"artist"`
+	Price  float64 `json:"price"`
+}
+
+type MemeoryStorage struct {
+	albums []album
+}
+
+type PostgresStorage struct {
+	db *sql.DB
 }
 
 func (s MemeoryStorage) Create(am album) album {
@@ -64,22 +81,24 @@ func NewMemoryStorage() MemeoryStorage {
 	return MemeoryStorage{albums: albums}
 }
 
-type MemeoryStorage struct {
-	albums []album
+func NewPostgresStorage() PostgresStorage {
+	connStr := "user=pqgotest dbname=pqgotest sslmode=verify-full"
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return PostgresStorage{db: db}
 }
 
-type album struct {
-	ID     string  `json:"id"`
-	Title  string  `json:"title"`
-	Artist string  `json:"artist"`
-	Price  float64 `json:"price"`
+func NewStorage() Storage {
+	return NewMemoryStorage()
 }
 
-var albums = []album{
-	{ID: "1", Title: "Blue Train", Artist: "John Coltrane", Price: 56.99},
-	{ID: "2", Title: "Jeru", Artist: "Gerry Mulligan", Price: 17.99},
-	{ID: "3", Title: "Sarah Vaughan and Clifford Brown", Artist: "Sarah Vaughan", Price: 39.99},
-}
+// var albums = []album{
+// 	{ID: "1", Title: "Blue Train", Artist: "John Coltrane", Price: 56.99},
+// 	{ID: "2", Title: "Jeru", Artist: "Gerry Mulligan", Price: 17.99},
+// 	{ID: "3", Title: "Sarah Vaughan and Clifford Brown", Artist: "Sarah Vaughan", Price: 39.99},
+// }
 
 var storage = NewMemoryStorage()
 
